@@ -24,7 +24,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
+        "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
@@ -32,6 +32,13 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Разрешите доступ к микрофону для голосовых заметок.",
+          "speechRecognitionPermission": "Разрешите распознавание речи для перевода голоса в текст."
         }
       ]
     ],

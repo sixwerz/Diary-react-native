@@ -13,25 +13,17 @@ export default function HomeScreen() {
   const notes = [{ id: "1", title: 'Добро пожаловать в "Diary-react-native"' }];
 
   const openNote = (id: string) => {
-    router.push({
-      pathname: "/note/[id]",
-      params: { id },
-    });
+    router.push(`/note/${id}`);
   };
 
   const handlePress = () => {
-    router.push({
-      pathname: "/note/[id]",
-      params: { id: "new" },
-    });
+    router.push("/note/new");
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Мои заметки</Text>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Здесь будет ваш список заметок */}
-
         {notes.map((note) => (
           <TouchableOpacity
             key={note.id}
