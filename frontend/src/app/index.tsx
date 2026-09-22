@@ -7,8 +7,6 @@ import {
   View,
 } from "react-native";
 
-import { ThemedView } from "@/components/themed-view";
-
 export default function HomeScreen() {
   const router = useRouter();
 
@@ -29,7 +27,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.title}>Мои заметки</Text>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Здесь будет ваш список заметок */}
@@ -57,7 +55,7 @@ export default function HomeScreen() {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
-    </ThemedView>
+    </View>
   );
 }
 

@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
+  PanResponder,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -13,34 +14,28 @@ import {
 export default function EditNoteScreen() {
   const router = useRouter();
 
-  // 1. Получаем параметр id из URL
   const { id } = useLocalSearchParams<{ id: string }>();
-
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
 
-  // 2. Загружаем данные заметки при монтировании экрана
+  const [isRecording, setIsRecording] = useState(false);
+  const [isLocked, setIsLocked] = useState(false)
+
   useEffect(() => {
     if (id === "new") {
-      // Если передали id = "new", значит создаем новую заметку
       setTitle("");
       setText("");
     } else {
-      // Здесь должна быть логика получения заметки из БД / AsyncStorage / State по id
-      // Пример загрузки данных:
+
       console.log("Загружаем заметку с ID:", id);
 
-      // Имитация загрузки:
       setTitle(`Заметка #${id}`);
       setText(`Текст заметки номер ${id}`);
     }
   }, [id]);
 
   const handleSave = () => {
-    // Логика сохранения/обновления заметки в БД по id
     console.log(`Сохраняем заметку ${id}:`, { title, text });
-
-    // Возвращаемся назад на главный экран
     router.back();
   };
 
@@ -51,6 +46,45 @@ export default function EditNoteScreen() {
   const handleBack = () => {
     router.back();
   };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+
+      onPanResponderGrant: () => {
+        setIsLocked(false);
+        setIsRecording(true);
+        console.log('Запись пошла');
+      },
+
+      onPanResponderMove: (e, gestureState) => {
+        if (gestureState.dy < -60) {
+          setIsLocked(true);
+          console.log('Запись закреплена');
+        }
+      },
+
+      onPanResponderRelease: (e, gestureState) => {
+        setIsRecording(false);
+        if (gestureState.dy < -60) {
+          return;
+        }
+        console.log('Запись остановлена');
+      },
+
+      onPanResponderTerminate: () => {
+         setIsRecording(false);
+        console.log("Запись прервана системой");
+      },
+    })
+  ).current;
+
+  const stopLockedRecording = () => {
+    setIsLocked(false);
+    setIsRecording(false);
+    console.log("Запись остановлена вручную");
+  };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -81,13 +115,27 @@ export default function EditNoteScreen() {
         multiline
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handlePress}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabIcon}>O</Text>
-      </TouchableOpacity>
+      {isLocked ? (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: "#FF3B30" }]}
+          onPress={stopLockedRecording}
+        >
+          <Text style={styles.fabIcon}>1</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.fab, 
+            isRecording && { backgroundColor: "#34C759" } 
+          ]}
+          activeOpacity={0.8}
+          {...panResponder.panHandlers} 
+        >
+          <Text style={styles.fabIcon}>
+            {isRecording ? "1" : "0"}
+          </Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -102,25 +150,23 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    bottom: 30, // Отступ от нижнего края экрана
-    alignSelf: "center", // Центрирование элемента по горизонтали в абсолютном позиционировании
+    bottom: 30,
+    alignSelf: "center", 
     width: 60,
     height: 60,
-    borderRadius: 30, // Половина ширины/высоты для идеального круга
-    backgroundColor: "#007AFF", // Цвет кнопки
+    borderRadius: 30, 
+    backgroundColor: "#007AFF", 
     justifyContent: "center",
     alignItems: "center",
-    // Тень для iOS
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4.5,
-    // Тень для Android
     elevation: 6,
   },
   fabIcon: {
     fontSize: 32,
     color: "#fff",
-    marginTop: -3, // Легкая корректировка выравнивания плюса по вертикали
+    marginTop: -3, 
   },
 });
