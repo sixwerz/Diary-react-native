@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import {
   ScrollView,
   StyleSheet,
@@ -9,15 +10,40 @@ import {
 import { ThemedView } from "@/components/themed-view";
 
 export default function HomeScreen() {
+  const router = useRouter();
+
+  const notes = [{ id: "1", title: 'Добро пожаловать в "Diary-react-native"' }];
+
+  const openNote = (id: string) => {
+    router.push({
+      pathname: "/note/[id]",
+      params: { id },
+    });
+  };
+
   const handlePress = () => {
-    console.log("Создать новую заметку");
+    router.push({
+      pathname: "/note/[id]",
+      params: { id: "new" },
+    });
   };
 
   return (
     <ThemedView style={styles.container}>
+      <Text style={styles.title}>Мои заметки</Text>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Мои заметки</Text>
         {/* Здесь будет ваш список заметок */}
+
+        {notes.map((note) => (
+          <TouchableOpacity
+            key={note.id}
+            style={styles.noteContainer}
+            onPress={() => openNote(note.id)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.noteTitle}>{note.title}</Text>
+          </TouchableOpacity>
+        ))}
 
         <View style={styles.noteContainer}>
           <Text>Название</Text>
@@ -39,10 +65,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#9CDFFF",
+    padding: 20,
   },
   scrollContent: {
-    padding: 20,
-    marginTop: 150,
+    // padding: 20,
   },
 
   noteContainer: {
@@ -50,12 +76,18 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     color: "#222222",
+    marginBottom: 10,
   },
 
   title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
+    marginTop: 150,
+  },
+  noteTitle: {
+    fontSize: 16,
+    color: "#222222",
   },
   fab: {
     position: "absolute",
