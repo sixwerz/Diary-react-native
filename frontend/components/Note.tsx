@@ -34,7 +34,7 @@ const Note = ({noteId, noteCreatedAt, noteText, noteTitle}: NoteProps) => {
       style={stylesNoteContainer.container}
     >
       <View style={stylesContainerNoteTitle.container}>
-        <Text style={stylesNoteTitle.container}>{noteTitle}</Text>
+        <Text style={stylesNoteTitle.container}>{noteTitle ? noteTitle : 'Без заголовка'}</Text>
         <Text style={stylesNoteCreatedAt.container}>{getRelativeDateString()}</Text>
       </View>
       

@@ -18,6 +18,17 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NoteProps from "../../../../types/NoteProps";
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  interpolateColor,
+  withSpring,
+  withRepeat,
+  withSequence
+} from 'react-native-reanimated';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function EditNoteScreen() {
   const router = useRouter();
@@ -34,6 +45,48 @@ export default function EditNoteScreen() {
   const isRecordingRef = useRef<boolean>(false);
   const touchStartTime = useRef(0);
   const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const recordingProgress = useSharedValue(1);
+  const colorProgress = useSharedValue(0);
+
+  const animatedStyleRecordingButton = useAnimatedStyle(() => {
+    const bgColor  = interpolateColor(
+      colorProgress.value,
+      [0, 1, 2],
+      ["#D98A3D", "#34C759", "#FF3B30"],
+    )
+
+    return {
+      transform: [{scale: recordingProgress.value}],
+      backgroundColor: bgColor,
+      shadowColor: bgColor,
+    }
+  });
+
+  useEffect(() => {
+    if (isLocked) {
+      colorProgress.value = withTiming(2, { duration: 350 });
+    } else if (isRecording) {
+      colorProgress.value = withTiming(1, { duration: 350 });
+    } else {
+      colorProgress.value = withTiming(0, { duration: 350 });
+    }
+  }, [isRecording, isLocked]);
+
+  useEffect(() => {
+    if (isRecording) {
+      recordingProgress.value = withRepeat(
+        withSequence(
+          withTiming(0.92, { duration: 500 }),
+          withTiming(1.08, { duration: 500 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      recordingProgress.value = withSpring(1, { mass: 0.5, stiffness: 150 });
+    }
+  }, [isRecording]);
 
   const stopRecording = () => {
     try {
@@ -177,7 +230,7 @@ export default function EditNoteScreen() {
           {
             noteText,
             noteTitle,
-            noteId: notes.length + 1,
+            noteId: Date.now(),
             noteCreatedAt: new Date().toISOString()
           }
         ] 
@@ -322,31 +375,31 @@ export default function EditNoteScreen() {
       />
 
       {isLocked ? (
-        <View style={{justifyContent: 'center', alignItems: 'center'}}>
-          <TouchableOpacity
-            style={[stylesFab.container, stylesFab.locked]}
+        <View style={stylesFabLayout.wrapper}>
+          <AnimatedTouchableOpacity
+            style={[stylesFab.container, animatedStyleRecordingButton ]}
             onPress={stopRecording}
             activeOpacity={0.8}
           >
             <Ionicons name="stop" size={30} color="#fff" />
-          </TouchableOpacity>
-          <Text style={{fontSize: 12, color: '#B9AFC7', fontFamily: 'Inter_400Regular', justifyContent: 'flex-start'}}>Говорите — текст появится сам</Text>
+          </AnimatedTouchableOpacity>
+          <Text style={stylesFabLayout.tipText}>Говорите — текст появится сам</Text>
         </View>
-
       ) : (
-        <View style={{justifyContent: 'center', alignItems: 'center'}}>
-          <View
-            {...panResponder.panHandlers}
+        <View style={stylesFabLayout.wrapper}>
+          <Animated.View 
             style={[
               stylesFab.container, 
-              isRecording && stylesFab.recording,
-              isClickBlocked && { opacity: 0.5 } ,
+              isClickBlocked && { opacity: 0.5 },
+              animatedStyleRecordingButton 
             ]}
+            {...panResponder.panHandlers} 
           >
             <Ionicons name="mic" size={28} color="#fff" />
-          </View>
+          </Animated.View>
+
           {isRecording && (
-            <Text style={{fontSize: 12, color: '#B9AFC7', fontFamily: 'Inter_400Regular'}}>Говорите — текст появится сам</Text>
+            <Text style={stylesFabLayout.tipText}>Говорите — текст появится сам</Text>
           )}
         </View>
       )}
@@ -393,11 +446,27 @@ const stylesTextInput = StyleSheet.create({
   },
 });
 
-const stylesFab = StyleSheet.create({
-  container: {
+const stylesFabLayout = StyleSheet.create({
+  wrapper: {
     position: "absolute",
     bottom: 30,
     alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tipText: {
+    fontSize: 13,
+    color: '#B9AFC7',
+    fontFamily: 'Inter-Regular', 
+    position: 'absolute',
+    top: -25, 
+    width: 200, 
+    textAlign: 'center',
+  }
+});
+
+const stylesFab = StyleSheet.create({
+  container: {
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -410,12 +479,4 @@ const stylesFab = StyleSheet.create({
     shadowRadius: 8,              
     elevation: 6,                 
   },
-  recording: {
-    backgroundColor: '#34C759',
-    shadowColor: '#34C759',
-  },
-  locked: {
-    backgroundColor: '#FF3B30',
-    shadowColor: '#FF3B30',
-  }
 });
