@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ScrollView,
   StyleSheet,
@@ -6,100 +6,131 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import NoteProps from "../../types/NoteProps";
+import Note from "../../components/Note";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HomeScreen() {
   const router = useRouter();
-
-  const notes = [{ id: "1", title: 'Добро пожаловать в "Diary-react-native"' }];
-
-  const openNote = (id: string) => {
-    router.push(`/note/${id}`);
-  };
+  const [notes, setNotes] = useState<NoteProps[]>([]);
 
   const handlePress = () => {
     router.push("/note/new");
   };
 
+  const loadNotes = async () => {
+    try {
+      const response = await AsyncStorage.getItem('notes');
+      setNotes(response ? JSON.parse(response) : []);
+      console.log('Заметки загружены');
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  useFocusEffect(useCallback(() => {
+    loadNotes();
+    return () => {}
+  }, []));
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Мои заметки</Text>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <View style={stylesMain.container}>
+      <View style={stylesPad.container}>
+        <Text style={styleDate.container}>
+          {new Date().toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+          })}
+        </Text>
+        <Text style={stylesTitle.container}>Мои заметки</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={stylesScrollContent.container}>
         {notes.map((note) => (
-          <TouchableOpacity
-            key={note.id}
-            style={styles.noteContainer}
-            onPress={() => openNote(note.id)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.noteTitle}>{note.title}</Text>
-          </TouchableOpacity>
+          <View key={note.noteId}>
+            <Note {...note}/>
+          </View>
         ))}
 
-        <View style={styles.noteContainer}>
-          <Text>Название</Text>
-        </View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handlePress}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+      <View>
+        <TouchableOpacity
+          style={stylesFab.container}
+          onPress={handlePress}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={32} color="#F1E7D4" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const stylesMain = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#9CDFFF",
     padding: 20,
+    gap: 20,
+    fontFamily: 'Inter-Bold',
+    backgroundColor: '#F8F1E4'
   },
-  scrollContent: {
+});
+
+const styleDate = StyleSheet.create({
+  container: {
+    fontStyle: 'italic', 
+    color: '#4B3F72', 
+    fontSize: 12,
+  }
+})
+
+const stylesPad = StyleSheet.create({
+  container: {
+    paddingTop: 50,
+  },
+});
+
+const stylesTitle = StyleSheet.create({
+  container: {
+    fontSize: 28,
+    fontWeight: "bold",
+    fontFamily: 'Inter-Bold',
+  },
+});
+
+const stylesScrollContent = StyleSheet.create({
+  container: {
     // padding: 20,
   },
+});
 
-  noteContainer: {
-    backgroundColor: "#BFEBFF",
-    padding: 15,
-    borderRadius: 10,
-    color: "#222222",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    marginTop: 150,
-  },
-  noteTitle: {
-    fontSize: 16,
-    color: "#222222",
-  },
-  fab: {
+const stylesFab = StyleSheet.create({
+  container: {
     position: "absolute",
-    bottom: 30, // Отступ от нижнего края экрана
-    alignSelf: "center", // Центрирование элемента по горизонтали в абсолютном позиционировании
+    bottom: 26,
+    alignSelf: "center",
     width: 60,
     height: 60,
-    borderRadius: 30, // Половина ширины/высоты для идеального круга
-    backgroundColor: "#007AFF", // Цвет кнопки
-    justifyContent: "center",
-    alignItems: "center",
-    // Тень для iOS
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.5,
-    // Тень для Android
-    elevation: 6,
+    borderRadius: '50%',
+    backgroundColor: '#D98A3D',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#D98A3D",       
+    shadowOffset: { 
+      width: 0,                 
+      height: 10                
+    },
+    shadowOpacity: 0.45,        
+    shadowRadius: 12,              
+    elevation: 10,                 
   },
-  fabIcon: {
+  icon: {
     fontSize: 32,
     color: "#fff",
-    marginTop: -3, // Легкая корректировка выравнивания плюса по вертикали
+    marginTop: -3,
   },
 });

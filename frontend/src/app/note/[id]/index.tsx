@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Button,
   PanResponder,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
+  ToastAndroid,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,18 +15,23 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NoteProps from "../../../../types/NoteProps";
 
 export default function EditNoteScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [noteId, setNoteId] = useState<number | string>(id === 'new' ? id : Number(id))
 
-  const [title, setTitle] = useState("");
-  const [text, setText] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
+  const [noteTitle, setNoteTitle] = useState<string>("");
+  const [noteText, setNoteText] = useState<string>("");
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [isClickBlocked, setIsClickBlocked] = useState<boolean>(false);
 
-  const isLockedRef = useRef(false);
-  const isRecordingRef = useRef(false);
+  const isLockedRef = useRef<boolean>(false);
+  const isRecordingRef = useRef<boolean>(false);
   const touchStartTime = useRef(0);
   const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,7 +50,6 @@ export default function EditNoteScreen() {
       setIsLocked(false);
     } catch (error) {
       console.error("Ошибка остановки:", error);
-
       isRecordingRef.current = false;
       isLockedRef.current = false;
       setIsRecording(false);
@@ -52,58 +57,32 @@ export default function EditNoteScreen() {
     }
   };
 
-  const startRecognition = () => {
+  const startRecordingFlow = async () => {
     try {
+      if (isRecordingRef.current) return;
+
+      const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permissions.granted) {
+        console.log("Нет разрешения на распознавание речи");
+        return;
+      }
+
       ExpoSpeechRecognitionModule.start({
         lang: "ru-RU",
         interimResults: true,
-        continuous: true,
+        continuous: false,
       });
 
       isRecordingRef.current = true;
       setIsRecording(true);
       console.log("Распознавание запущено");
     } catch (error) {
-      console.error("Ошибка запуска распознавания:", error);
-
-      isRecordingRef.current = false;
-      setIsRecording(false);
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      if (isRecordingRef.current) return;
-
-      const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-
-      if (!permissions.granted) {
-        console.log("Нет разрешения на распознавание речи");
-        return;
-      }
-
-      startRecognition();
-    } catch (error) {
       console.error("Ошибка запуска записи:", error);
-
       isRecordingRef.current = false;
       isLockedRef.current = false;
       setIsRecording(false);
       setIsLocked(false);
     }
-  };
-
-  const stopLockedRecording = () => {
-    stopRecording();
-  };
-
-  const handleSave = () => {
-    if (title.trim() === "" || text.trim() === "") {
-      console.log("Введите текст и название заметки");
-      return;
-    }
-
-    console.log(`Сохраняем заметку ${id}:`, { title, text });
   };
 
   const handleBack = () => {
@@ -112,26 +91,38 @@ export default function EditNoteScreen() {
   };
 
   useSpeechRecognitionEvent("result", (event) => {
-    if (!event.isFinal) return;
+    try {
+      if (!event.isFinal) return;
 
-    const transcript = event.results?.[0]?.transcript?.trim();
-    if (!transcript) return;
+      const transcript = event.results?.[0]?.transcript?.trim();
+      if (!transcript) return;
+        
+      console.log("Распознано:", transcript);
 
-    console.log("Распознано:", transcript);
+      setNoteText((prev) => {
+        const previousText = prev.trim();
+        if (!previousText) return transcript;
+        return `${previousText} ${transcript}`;
+      });
 
-    setText((prev) => {
-      const previousText = prev.trim();
-      if (!previousText) return transcript;
-      return `${previousText} ${transcript}`;
-    });
-
-    if (!isLockedRef.current) {
-      stopRecording();
+      if (!isLockedRef.current) {
+        stopRecording();
+      }
+    } catch (error) {
+      console.error('Ошибка распознавания', error);
     }
   });
 
   useSpeechRecognitionEvent("error", (event) => {
     console.error("Ошибка распознавания:", JSON.stringify(event));
+
+    if (event.error === "no-speech") {
+      console.log("Слова не распознаны");
+      if (isLockedRef.current) {
+        return; 
+      }
+      return;
+    }
 
     if (restartTimeoutRef.current) {
       clearTimeout(restartTimeoutRef.current);
@@ -146,7 +137,6 @@ export default function EditNoteScreen() {
 
   useSpeechRecognitionEvent("end", () => {
     console.log("Распознавание завершено");
-
     isRecordingRef.current = false;
     setIsRecording(false);
 
@@ -161,14 +151,12 @@ export default function EditNoteScreen() {
 
     restartTimeoutRef.current = setTimeout(() => {
       if (!isLockedRef.current) return;
-
       try {
         ExpoSpeechRecognitionModule.start({
           lang: "ru-RU",
           interimResults: true,
           continuous: true,
         });
-
         isRecordingRef.current = true;
         setIsRecording(true);
         console.log("Распознавание перезапущено");
@@ -178,13 +166,66 @@ export default function EditNoteScreen() {
     }, 300);
   });
 
+  const saveNote = async () => {
+    try {     
+      const response = await AsyncStorage.getItem('notes');
+      const notes: NoteProps[] = response ? JSON.parse(response) : [];
+
+      const finalNotes: NoteProps[] = noteId === 'new' 
+        ? [
+          ...notes,
+          {
+            noteText,
+            noteTitle,
+            noteId: notes.length + 1,
+            noteCreatedAt: new Date().toISOString()
+          }
+        ] 
+        : notes.map(note => note.noteId === noteId 
+          ? {...note, noteText, noteTitle } 
+          : note
+        );        
+
+      if (noteId === 'new') {   
+        setNoteId(notes.length + 1);
+      }
+
+      await AsyncStorage.setItem('notes', JSON.stringify(finalNotes));
+      ToastAndroid.show("Заметка успешно сохранена!", ToastAndroid.SHORT)
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const loadNote = async (id: number) => {
+    try {
+      const response = await AsyncStorage.getItem('notes');
+      if (!response) {
+        console.log('Заметки не найдены');
+        return;
+      }
+      const notes: NoteProps[] = JSON.parse(response);
+      const foundNote = notes.find(note => note.noteId === id);
+
+      if (!foundNote) {
+        console.log(`Записи с id: ${id} не найдено`);
+        return;
+      }
+
+      setNoteTitle(foundNote.noteTitle);
+      setNoteText(foundNote.noteText);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+
   useEffect(() => {
-    if (id === "new") {
-      setTitle("");
-      setText("");
+    if (noteId === "new") {
+      setNoteTitle("");
+      setNoteText("");
     } else {
-      setTitle(`Заметка #${id}`);
-      setText(`Текст заметки номер ${id}`);
+      loadNote(Number(noteId));
     }
 
     return () => {
@@ -192,10 +233,8 @@ export default function EditNoteScreen() {
         clearTimeout(restartTimeoutRef.current);
         restartTimeoutRef.current = null;
       }
-
       isLockedRef.current = false;
       isRecordingRef.current = false;
-
       try {
         ExpoSpeechRecognitionModule.stop();
       } catch (error) {
@@ -210,14 +249,18 @@ export default function EditNoteScreen() {
       onMoveShouldSetPanResponder: () => true,
 
       onPanResponderGrant: () => {
-        touchStartTime.current = Date.now();
+        if (isClickBlocked) {
+          return;
+        }
 
+        touchStartTime.current = Date.now();
         isLockedRef.current = false;
         setIsLocked(false);
-        startRecording();
+        startRecordingFlow(); 
       },
 
       onPanResponderMove: (_event, gestureState) => {
+        if (isClickBlocked) return;
         if (gestureState.dy < -60 && !isLockedRef.current) {
           isLockedRef.current = true;
           setIsLocked(true);
@@ -226,12 +269,20 @@ export default function EditNoteScreen() {
       },
 
       onPanResponderRelease: (_event, gestureState) => {
+        if (isClickBlocked) return;
+
         if (isLockedRef.current || gestureState.dy < -60) {
           isLockedRef.current = true;
           setIsLocked(true);
           return;
         }
+        
         stopRecording();
+
+        setIsClickBlocked(true);
+        setTimeout(() => {
+          setIsClickBlocked(false); 
+        }, 1000);
       },
 
       onPanResponderTerminate: () => {
@@ -241,103 +292,130 @@ export default function EditNoteScreen() {
   ).current;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={handleBack} activeOpacity={0.8}>
-        <Text style={styles.backText}>Назад</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={stylesMain.container}>
+      <View style={stylesHeader.container}>
+        <TouchableOpacity onPress={handleBack} activeOpacity={0.8}>
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
 
-      <View style={styles.header}>
-        <Button title="Сохранить" onPress={handleSave} />
+        <Pressable onPress={saveNote}>
+          <Ionicons name="save-outline" size={24} color="#222" />
+        </Pressable>
       </View>
 
       <TextInput
-        style={styles.titleInput}
-        value={title}
-        onChangeText={setTitle}
+        style={stylesTitleInput.container}
+        value={noteTitle}
+        onChangeText={setNoteTitle}
         placeholder="Заголовок"
-        placeholderTextColor="#777"
+        placeholderTextColor={'black'}
       />
 
       <TextInput
-        style={styles.textInput}
-        value={text}
-        onChangeText={setText}
+        style={stylesTextInput.container}
+        value={noteText}
+        onChangeText={setNoteText}
         placeholder="Текст заметки..."
-        placeholderTextColor="#777"
+        placeholderTextColor={'#6b6178'}
         multiline
         textAlignVertical="top"
       />
 
       {isLocked ? (
-        <TouchableOpacity
-          style={[styles.fab, styles.fabLocked]}
-          onPress={stopLockedRecording}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.fabIcon}>■</Text>
-        </TouchableOpacity>
+        <View style={{justifyContent: 'center', alignItems: 'center'}}>
+          <TouchableOpacity
+            style={[stylesFab.container, stylesFab.locked]}
+            onPress={stopRecording}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="stop" size={30} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{fontSize: 12, color: '#B9AFC7', fontFamily: 'Inter_400Regular', justifyContent: 'flex-start'}}>Говорите — текст появится сам</Text>
+        </View>
+
       ) : (
-        <View
-          {...panResponder.panHandlers}
-          style={[styles.fab, isRecording && styles.fabRecording]}
-        >
-          <Text style={styles.fabIcon}>{isRecording ? "●" : "🎤"}</Text>
+        <View style={{justifyContent: 'center', alignItems: 'center'}}>
+          <View
+            {...panResponder.panHandlers}
+            style={[
+              stylesFab.container, 
+              isRecording && stylesFab.recording,
+              isClickBlocked && { opacity: 0.5 } ,
+            ]}
+          >
+            <Ionicons name="mic" size={28} color="#fff" />
+          </View>
+          {isRecording && (
+            <Text style={{fontSize: 12, color: '#B9AFC7', fontFamily: 'Inter_400Regular'}}>Говорите — текст появится сам</Text>
+          )}
         </View>
       )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const stylesMain = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#BFEBFF",
+    paddingHorizontal: 20,
+    backgroundColor: "#F8F1E4",
+    paddingBottom: 20
   },
-  backText: {
-    color: "#222222",
-    fontSize: 16,
-  },
-  header: {
-    alignItems: "flex-end",
+});
+
+const stylesHeader = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 15,
     marginBottom: 10,
   },
-  titleInput: {
-    fontSize: 22,
-    fontWeight: "bold",
+});
+
+const stylesTitleInput = StyleSheet.create({
+  container: {
+    fontSize: 24,
+    fontFamily: 'Inter_700Bold',
+    color: '#2A2333',
     marginBottom: 15,
-    color: "#111",
+    paddingVertical: 5,
   },
-  textInput: {
+});
+
+const stylesTextInput = StyleSheet.create({
+  container: {
     flex: 1,
     fontSize: 16,
-    color: "#111",
-    textAlignVertical: "top",
+    fontFamily: 'Inter_400Regular',
+    color: '#2A2333',
+    lineHeight: 24,
   },
-  fab: {
+});
+
+const stylesFab = StyleSheet.create({
+  container: {
     position: "absolute",
     bottom: 30,
     alignSelf: "center",
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.5,
-    elevation: 6,
+    backgroundColor: '#D98A3D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#D98A3D",       
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,        
+    shadowRadius: 8,              
+    elevation: 6,                 
   },
-  fabRecording: {
-    backgroundColor: "#34C759",
+  recording: {
+    backgroundColor: '#34C759',
+    shadowColor: '#34C759',
   },
-  fabLocked: {
-    backgroundColor: "#FF3B30",
-  },
-  fabIcon: {
-    fontSize: 28,
-    color: "#fff",
-  },
+  locked: {
+    backgroundColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+  }
 });
