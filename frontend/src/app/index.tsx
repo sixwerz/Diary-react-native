@@ -1,16 +1,21 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
+  ToastAndroid,
   TouchableOpacity,
   View,
 } from "react-native";
 import NoteProps from "../../types/NoteProps";
 import Note from "../../components/Note";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Animated from "react-native-reanimated";
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,7 +29,18 @@ export default function HomeScreen() {
     try {
       const response = await AsyncStorage.getItem('notes');
       setNotes(response ? JSON.parse(response) : []);
-      console.log('Заметки загружены');
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const handleDeleteNote = async (noteId: number) => {
+    try {
+      const finalNotes: NoteProps[] = notes.filter(note => note.noteId !== noteId);
+
+      await AsyncStorage.setItem('notes', JSON.stringify(finalNotes))
+      setNotes(finalNotes)
+      ToastAndroid.show('Запись удалена', ToastAndroid.SHORT);
     } catch (error) {
       console.error(error);
     }
@@ -50,20 +66,20 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={stylesScrollContent.container}>
         {notes.map((note) => (
           <View key={note.noteId}>
-            <Note {...note}/>
+            <Note {...note} handleDeleteNote={handleDeleteNote}/>
           </View>
         ))}
 
       </ScrollView>
 
       <View>
-        <TouchableOpacity
+        <AnimatedTouchableOpacity
           style={stylesFab.container}
           onPress={handlePress}
           activeOpacity={0.8}
         >
           <Ionicons name="add" size={32} color="#F1E7D4" />
-        </TouchableOpacity>
+        </AnimatedTouchableOpacity>
       </View>
     </View>
   );
@@ -114,7 +130,7 @@ const stylesFab = StyleSheet.create({
     alignSelf: "center",
     width: 60,
     height: 60,
-    borderRadius: '50%',
+    borderRadius: 30,
     backgroundColor: '#D98A3D',
     display: 'flex',
     alignItems: 'center',
