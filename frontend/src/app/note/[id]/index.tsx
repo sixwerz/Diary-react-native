@@ -1,6 +1,13 @@
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import { useEffect, useRef, useState } from "react";
 import {
+  KeyboardAvoidingView,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -10,30 +17,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
-import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import NoteProps from "../../../../types/NoteProps";
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
   interpolateColor,
-  withSpring,
+  useAnimatedStyle,
+  useSharedValue,
   withRepeat,
-  withSequence
-} from 'react-native-reanimated';
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import NoteProps from "../../../../types/NoteProps";
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function EditNoteScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [noteId, setNoteId] = useState<number | string>(id === 'new' ? id : Number(id))
+  const [noteId, setNoteId] = useState<number | string>(
+    id === "new" ? id : Number(id)
+  );
 
   const [noteTitle, setNoteTitle] = useState<string>("");
   const [noteText, setNoteText] = useState<string>("");
@@ -50,17 +54,17 @@ export default function EditNoteScreen() {
   const colorProgress = useSharedValue(0);
 
   const animatedStyleRecordingButton = useAnimatedStyle(() => {
-    const bgColor  = interpolateColor(
+    const bgColor = interpolateColor(
       colorProgress.value,
       [0, 1, 2],
-      ["#D98A3D", "#34C759", "#FF3B30"],
-    )
+      ["#D98A3D", "#34C759", "#FF3B30"]
+    );
 
     return {
-      transform: [{scale: recordingProgress.value}],
+      transform: [{ scale: recordingProgress.value }],
       backgroundColor: bgColor,
       shadowColor: bgColor,
-    }
+    };
   });
 
   useEffect(() => {
@@ -114,7 +118,8 @@ export default function EditNoteScreen() {
     try {
       if (isRecordingRef.current) return;
 
-      const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      const permissions =
+        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!permissions.granted) {
         console.log("Нет разрешения на распознавание речи");
         return;
@@ -149,20 +154,20 @@ export default function EditNoteScreen() {
 
       const transcript = event.results?.[0]?.transcript?.trim();
       if (!transcript) return;
-        
+
       console.log("Распознано:", transcript);
 
       setNoteText((prev) => {
         const previousText = prev.trim();
         if (!previousText) return transcript;
-        return `${previousText} ${transcript}`;
+        return `${previousText} ${transcript}.`;
       });
 
       if (!isLockedRef.current) {
         stopRecording();
       }
     } catch (error) {
-      console.error('Ошибка распознавания', error);
+      console.error("Ошибка распознавания", error);
     }
   });
 
@@ -172,7 +177,7 @@ export default function EditNoteScreen() {
     if (event.error === "no-speech") {
       console.log("Слова не распознаны");
       if (isLockedRef.current) {
-        return; 
+        return;
       }
       return;
     }
@@ -220,45 +225,47 @@ export default function EditNoteScreen() {
   });
 
   const saveNote = async () => {
-    try {     
-      const response = await AsyncStorage.getItem('notes');
+    try {
+      const response = await AsyncStorage.getItem("notes");
       const notes: NoteProps[] = response ? JSON.parse(response) : [];
 
-      const finalNotes: NoteProps[] = noteId === 'new' 
-        ? [
-          ...notes,
-          {
-            noteText,
-            noteTitle,
-            noteId: Date.now(),
-            noteCreatedAt: new Date().toISOString()
-          }
-        ] 
-        : notes.map(note => note.noteId === noteId 
-          ? {...note, noteText, noteTitle } 
-          : note
-        );        
+      const finalNotes: NoteProps[] =
+        noteId === "new"
+          ? [
+              ...notes,
+              {
+                noteText,
+                noteTitle,
+                noteId: Date.now(),
+                noteCreatedAt: new Date().toISOString(),
+              },
+            ]
+          : notes.map((note) =>
+              note.noteId === noteId ? { ...note, noteText, noteTitle } : note
+            );
 
-      if (noteId === 'new') {   
+      if (noteId === "new") {
         setNoteId(notes.length + 1);
       }
 
-      await AsyncStorage.setItem('notes', JSON.stringify(finalNotes));
-      ToastAndroid.show("Заметка успешно сохранена!", ToastAndroid.SHORT)
+      await AsyncStorage.setItem("notes", JSON.stringify(finalNotes));
+      ToastAndroid.show("Заметка успешно сохранена!", ToastAndroid.SHORT);
+
+      router.back();
     } catch (error) {
       console.error(error);
     }
-  }
+  };
 
   const loadNote = async (id: number) => {
     try {
-      const response = await AsyncStorage.getItem('notes');
+      const response = await AsyncStorage.getItem("notes");
       if (!response) {
-        console.log('Заметки не найдены');
+        console.log("Заметки не найдены");
         return;
       }
       const notes: NoteProps[] = JSON.parse(response);
-      const foundNote = notes.find(note => note.noteId === id);
+      const foundNote = notes.find((note) => note.noteId === id);
 
       if (!foundNote) {
         console.log(`Записи с id: ${id} не найдено`);
@@ -270,8 +277,7 @@ export default function EditNoteScreen() {
     } catch (error) {
       console.error(error);
     }
-  }
-
+  };
 
   useEffect(() => {
     if (noteId === "new") {
@@ -309,7 +315,7 @@ export default function EditNoteScreen() {
         touchStartTime.current = Date.now();
         isLockedRef.current = false;
         setIsLocked(false);
-        startRecordingFlow(); 
+        startRecordingFlow();
       },
 
       onPanResponderMove: (_event, gestureState) => {
@@ -329,12 +335,12 @@ export default function EditNoteScreen() {
           setIsLocked(true);
           return;
         }
-        
+
         stopRecording();
 
         setIsClickBlocked(true);
         setTimeout(() => {
-          setIsClickBlocked(false); 
+          setIsClickBlocked(false);
         }, 1000);
       },
 
@@ -346,63 +352,74 @@ export default function EditNoteScreen() {
 
   return (
     <SafeAreaView style={stylesMain.container}>
-      <View style={stylesHeader.container}>
-        <TouchableOpacity onPress={handleBack} activeOpacity={0.8}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior="height"
+        style={stylesMain.keyboardAvoiding}
+      >
+        <View style={stylesMain.innerContent}>
+          <View style={stylesHeader.container}>
+            <TouchableOpacity onPress={handleBack} activeOpacity={0.8}>
+              <Ionicons name="arrow-back" size={24} color="black" />
+            </TouchableOpacity>
 
-        <Pressable onPress={saveNote}>
-          <Ionicons name="save-outline" size={24} color="#222" />
-        </Pressable>
-      </View>
+            <Pressable onPress={saveNote}>
+              <Ionicons name="save-outline" size={24} color="#222" />
+            </Pressable>
+          </View>
 
-      <TextInput
-        style={stylesTitleInput.container}
-        value={noteTitle}
-        onChangeText={setNoteTitle}
-        placeholder="Заголовок"
-        placeholderTextColor={'black'}
-      />
+          <TextInput
+            style={stylesTitleInput.container}
+            value={noteTitle}
+            onChangeText={setNoteTitle}
+            placeholder="Заголовок"
+            placeholderTextColor={"black"}
+          />
 
-      <TextInput
-        style={stylesTextInput.container}
-        value={noteText}
-        onChangeText={setNoteText}
-        placeholder="Текст заметки..."
-        placeholderTextColor={'#6b6178'}
-        multiline
-        textAlignVertical="top"
-      />
+          <TextInput
+            style={stylesTextInput.container}
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder="Текст заметки..."
+            placeholderTextColor={"#6b6178"}
+            multiline
+            textAlignVertical="top"
+          />
 
-      {isLocked ? (
-        <View style={stylesFabLayout.wrapper}>
-          <AnimatedTouchableOpacity
-            style={[stylesFab.container, animatedStyleRecordingButton ]}
-            onPress={stopRecording}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="stop" size={30} color="#fff" />
-          </AnimatedTouchableOpacity>
-          <Text style={stylesFabLayout.tipText}>Говорите — текст появится сам</Text>
-        </View>
-      ) : (
-        <View style={stylesFabLayout.wrapper}>
-          <Animated.View 
-            style={[
-              stylesFab.container, 
-              isClickBlocked && { opacity: 0.5 },
-              animatedStyleRecordingButton 
-            ]}
-            {...panResponder.panHandlers} 
-          >
-            <Ionicons name="mic" size={28} color="#fff" />
-          </Animated.View>
+          {isLocked ? (
+            <View style={stylesFabLayout.wrapper}>
+              <AnimatedTouchableOpacity
+                style={[stylesFab.container, animatedStyleRecordingButton]}
+                onPress={stopRecording}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="stop" size={30} color="#fff" />
+              </AnimatedTouchableOpacity>
+              <Text style={stylesFabLayout.tipText}>
+                Говорите — текст появится сам
+              </Text>
+            </View>
+          ) : (
+            <View style={stylesFabLayout.wrapper}>
+              <Animated.View
+                style={[
+                  stylesFab.container,
+                  isClickBlocked && { opacity: 0.5 },
+                  animatedStyleRecordingButton,
+                ]}
+                {...panResponder.panHandlers}
+              >
+                <Ionicons name="mic" size={28} color="#fff" />
+              </Animated.View>
 
-          {isRecording && (
-            <Text style={stylesFabLayout.tipText}>Говорите — текст появится сам</Text>
+              {isRecording && (
+                <Text style={stylesFabLayout.tipText}>
+                  Говорите — текст появится сам
+                </Text>
+              )}
+            </View>
           )}
         </View>
-      )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -412,7 +429,15 @@ const stylesMain = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     backgroundColor: "#F8F1E4",
-    paddingBottom: 20
+    paddingBottom: 20,
+  },
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  innerContent: {
+    flex: 1,
+    // paddingHorizontal: 20,
+    paddingBottom: 15,
   },
 });
 
@@ -429,8 +454,8 @@ const stylesHeader = StyleSheet.create({
 const stylesTitleInput = StyleSheet.create({
   container: {
     fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    color: '#2A2333',
+    fontFamily: "Inter_700Bold",
+    color: "#2A2333",
     marginBottom: 15,
     paddingVertical: 5,
   },
@@ -440,8 +465,8 @@ const stylesTextInput = StyleSheet.create({
   container: {
     flex: 1,
     fontSize: 16,
-    fontFamily: 'Inter_400Regular',
-    color: '#2A2333',
+    fontFamily: "Inter_400Regular",
+    color: "#2A2333",
     lineHeight: 24,
   },
 });
@@ -456,13 +481,13 @@ const stylesFabLayout = StyleSheet.create({
   },
   tipText: {
     fontSize: 13,
-    color: '#B9AFC7',
-    fontFamily: 'Inter-Regular', 
-    position: 'absolute',
-    top: -25, 
-    width: 200, 
-    textAlign: 'center',
-  }
+    color: "#B9AFC7",
+    fontFamily: "Inter-Regular",
+    position: "absolute",
+    top: -25,
+    width: 200,
+    textAlign: "center",
+  },
 });
 
 const stylesFab = StyleSheet.create({
@@ -470,13 +495,13 @@ const stylesFab = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#D98A3D',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: "#D98A3D",       
+    backgroundColor: "#D98A3D",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#D98A3D",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,        
-    shadowRadius: 8,              
-    elevation: 6,                 
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
