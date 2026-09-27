@@ -13,7 +13,7 @@ import Note from "../../components/Note";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Animated from "react-native-reanimated";
+import Animated, { FadeInLeft, LinearTransition } from "react-native-reanimated";
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -79,14 +79,17 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={stylesScrollContent.container}>
-        {notes.map((note) => (
-          <View key={note.noteId}>
+        {notes.map((note, index) => (
+          <Animated.View 
+            key={note.noteId}
+            entering={FadeInLeft.delay(index * 200).duration(300)}
+            layout={LinearTransition.springify().mass(0.4)} 
+            >
             <Note {...note} handleDeleteNote={handleDeleteNote} />
-          </View>
+          </Animated.View>
         ))}
 
       </ScrollView>
-
       <View>
         <AnimatedTouchableOpacity
           style={stylesFab.container}

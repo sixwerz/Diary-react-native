@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { PanResponder, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Extrapolation,
@@ -8,6 +8,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import NoteProps from "../types/NoteProps";
 
@@ -59,10 +60,22 @@ const Note = ({
   };
 
   const noteDeleteProgress = useSharedValue(0);
+  const noteTrashBgProgress = useSharedValue(0);
 
   const animatedNoteDelete = useAnimatedStyle(() => {
     return {
       transform: [{ translateX: noteDeleteProgress.value }],
+    };
+  });
+
+  const animatedNoteTrashBG = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
+      noteDeleteProgress.value,
+        [0, 150],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
     };
   });
 
@@ -74,7 +87,7 @@ const Note = ({
           scale: interpolate(
             noteDeleteProgress.value,
             [0, 150],
-            [0.3, 1.2],
+            [0.3, 2],
             Extrapolation.CLAMP
           ),
         },
@@ -111,13 +124,13 @@ const Note = ({
 
   return (
     <View style={stylesMainContainer.container}>
-      <View style={stylesTrashContainer.container}>
+      <Animated.View style={[stylesTrashContainer.container, animatedNoteTrashBG,]}>
         <AnimatedIonicons
           style={animatedTrashDelete}
           name="trash"
           color="#fff"
         />
-      </View>
+      </Animated.View>
 
       <Animated.View
         {...panResponder.panHandlers}
