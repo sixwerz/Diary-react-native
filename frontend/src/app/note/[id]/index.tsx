@@ -429,7 +429,7 @@ const stylesMain = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     backgroundColor: "#F8F1E4",
-    paddingBottom: 20,
+    paddingBottom: 15,
   },
   keyboardAvoiding: {
     flex: 1,
