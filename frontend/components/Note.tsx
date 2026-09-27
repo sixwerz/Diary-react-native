@@ -21,6 +21,7 @@ const Note = ({
   handleDeleteNote,
 }: NoteProps) => {
   if (!handleDeleteNote) return;
+  const isDeleting = useRef(false);
 
   const getRelativeDateString = () => {
     const targetDate = new Date(noteCreatedAt);
@@ -88,19 +89,18 @@ const Note = ({
 
       onPanResponderMove: (_event, gestureState) => {
         noteDeleteProgress.value = Math.max(0, gestureState.dx);
-
-        if (gestureState.dx >= 300) {
-          handleDeleteNote(noteId);
-        }
       },
 
       onPanResponderRelease: (_event, gestureState) => {
-        if (gestureState.dx < 300) {
-          noteDeleteProgress.value = withSpring(0, {
-            mass: 0.5,
-            stiffness: 150,
-          });
+        if (gestureState.dx >= 300) {
+          handleDeleteNote(noteId);
+          return;
         }
+
+        noteDeleteProgress.value = withSpring(0, {
+          mass: 0.5,
+          stiffness: 150,
+        });
 
         if (Math.abs(gestureState.dx) < 10 && Math.abs(gestureState.dy) < 10) {
           editNote();

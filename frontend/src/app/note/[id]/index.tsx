@@ -143,11 +143,6 @@ export default function EditNoteScreen() {
     }
   };
 
-  const handleBack = () => {
-    stopRecording();
-    router.back();
-  };
-
   useSpeechRecognitionEvent("result", (event) => {
     try {
       if (!event.isFinal) return;
@@ -250,11 +245,16 @@ export default function EditNoteScreen() {
 
       await AsyncStorage.setItem("notes", JSON.stringify(finalNotes));
       ToastAndroid.show("Заметка успешно сохранена!", ToastAndroid.SHORT);
-
-      router.back();
+      
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleBack = async () => {
+    await saveNote()    
+    router.back();
+    stopRecording();
   };
 
   const loadNote = async (id: number) => {

@@ -11,7 +11,7 @@ import {
 import NoteProps from "../../types/NoteProps";
 import Note from "../../components/Note";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated from "react-native-reanimated";
 
@@ -34,22 +34,37 @@ export default function HomeScreen() {
     }
   }
 
-  const handleDeleteNote = async (noteId: number) => {
-    try {
-      const finalNotes: NoteProps[] = notes.filter(note => note.noteId !== noteId);
+  const handleDeleteNote = (noteId: number) => {
+    setTimeout(async () => {
+      try {
+        const currentNotes = await AsyncStorage.getItem("notes");
+        const parsedNotes: NoteProps[] = currentNotes
+          ? JSON.parse(currentNotes)
+          : [];
 
-      await AsyncStorage.setItem('notes', JSON.stringify(finalNotes))
-      setNotes(finalNotes)
-      ToastAndroid.show('Запись удалена', ToastAndroid.SHORT);
-    } catch (error) {
-      console.error(error);
-    }
-  }
+        const finalNotes = parsedNotes.filter(
+          note => note.noteId !== noteId
+        );
+
+        await AsyncStorage.setItem(
+          "notes",
+          JSON.stringify(finalNotes)
+        );
+
+        setNotes(finalNotes);
+
+        ToastAndroid.show("Запись удалена", ToastAndroid.SHORT);
+      } catch (error) {
+        console.error(error);
+      }
+    }, 0);
+  };
 
   useFocusEffect(useCallback(() => {
     loadNotes();
-    return () => {}
-  }, []));
+    return () => { };
+  }, [])
+  );
 
   return (
     <View style={stylesMain.container}>
@@ -66,7 +81,7 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={stylesScrollContent.container}>
         {notes.map((note) => (
           <View key={note.noteId}>
-            <Note {...note} handleDeleteNote={handleDeleteNote}/>
+            <Note {...note} handleDeleteNote={handleDeleteNote} />
           </View>
         ))}
 
@@ -97,8 +112,8 @@ const stylesMain = StyleSheet.create({
 
 const styleDate = StyleSheet.create({
   container: {
-    fontStyle: 'italic', 
-    color: '#4B3F72', 
+    fontStyle: 'italic',
+    color: '#4B3F72',
     fontSize: 12,
   }
 })
@@ -135,14 +150,14 @@ const stylesFab = StyleSheet.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: "#D98A3D",       
-    shadowOffset: { 
-      width: 0,                 
-      height: 10                
+    shadowColor: "#D98A3D",
+    shadowOffset: {
+      width: 0,
+      height: 10
     },
-    shadowOpacity: 0.45,        
-    shadowRadius: 12,              
-    elevation: 10,                 
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 10,
   },
   icon: {
     fontSize: 32,
