@@ -4,4 +4,5 @@ export default interface NoteProps {
   noteTitle: string;
   noteCreatedAt: string;
   handleDeleteNote?(noteId: number): void;
+  returnNote?(): void;
 }

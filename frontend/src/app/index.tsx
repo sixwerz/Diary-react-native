@@ -1,6 +1,8 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+  Modal,
   PanResponder,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,12 +16,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInLeft, LinearTransition } from "react-native-reanimated";
+import WidgetTrashNotes from "../../components/WidgetTrashNotes";
+import { runOnJS } from "react-native-worklets";
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function HomeScreen() {
   const router = useRouter();
   const [notes, setNotes] = useState<NoteProps[]>([]);
+
+  const [isVisibleWidget, setIsVisibleWidget] = useState<boolean>(false);
 
   const handlePress = () => {
     router.push("/note/new");
@@ -46,9 +52,25 @@ export default function HomeScreen() {
           note => note.noteId !== noteId
         );
 
+        const deletedNote = parsedNotes.filter(
+          note => note.noteId === noteId
+        );
+
         await AsyncStorage.setItem(
           "notes",
           JSON.stringify(finalNotes)
+        );
+
+        const currentDeletedNotes = await AsyncStorage.getItem("deleted_notes");
+        const parsedDeletedNotes: NoteProps[] = currentDeletedNotes
+          ? JSON.parse(currentDeletedNotes)
+          : [];
+
+        const newDeletedNotes = [...parsedDeletedNotes, deletedNote];
+
+        await AsyncStorage.setItem(
+          "deleted_notes",
+          JSON.stringify(newDeletedNotes)
         );
 
         setNotes(finalNotes);
@@ -61,10 +83,17 @@ export default function HomeScreen() {
   };
 
   useFocusEffect(useCallback(() => {
-    loadNotes();
-    return () => { };
-  }, [])
+      loadNotes();
+      return () => { };
+    }, [])
   );
+
+  const handleVisibleWidget = () => {
+    if (!isVisibleWidget) {
+      return;
+    }
+    runOnJS(setIsVisibleWidget)(false)
+  }
 
   return (
     <View style={stylesMain.container}>
@@ -75,9 +104,27 @@ export default function HomeScreen() {
             month: 'long',
           })}
         </Text>
-        <Text style={stylesTitle.container}>Мои заметки</Text>
+        <View style={styleContainerTitle.container}>
+          <Text style={stylesTitle.container}>Мои заметки</Text>
+          <Pressable
+            onPress={handleVisibleWidget}
+          >
+            <Ionicons
+              name="trash"
+              size={28}
+              color="#6b6178"
+            />
+          </Pressable>
+        </View>
       </View>
 
+      <Modal
+
+        transparent={true}
+        visible={isVisibleWidget}
+      >
+        <WidgetTrashNotes returnNote={() => {} } handleClose={() => setIsVisibleWidget(false)} visible={isVisibleWidget}/>
+      </Modal>
       <ScrollView contentContainerStyle={stylesScrollContent.container}>
         {notes.map((note, index) => (
           <Animated.View 
@@ -111,6 +158,14 @@ const stylesMain = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     backgroundColor: '#F8F1E4'
   },
+});
+
+const styleContainerTitle = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  }
 });
 
 const styleDate = StyleSheet.create({
