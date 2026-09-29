@@ -1,5 +1,5 @@
 export default interface WidgetTrashNotesProps {
-  returnNote(): void;
+  returnNote(noteId: number): void;
   handleClose(): void;
   visible: boolean;
 }

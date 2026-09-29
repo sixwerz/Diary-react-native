@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { PanResponder, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Extrapolation,
@@ -19,9 +19,12 @@ const Note = ({
   noteCreatedAt,
   noteText,
   noteTitle,
+  status,
   handleDeleteNote,
+  returnNote
 }: NoteProps) => {
-  if (!handleDeleteNote) return;
+  if (!handleDeleteNote && !returnNote) return null;
+
   const isDeleting = useRef(false);
 
   const getRelativeDateString = () => {
@@ -33,6 +36,7 @@ const Note = ({
       targetDate.getMonth(),
       targetDate.getDate()
     ).getTime();
+
     const today = new Date(
       now.getFullYear(),
       now.getMonth(),
@@ -60,7 +64,6 @@ const Note = ({
   };
 
   const noteDeleteProgress = useSharedValue(0);
-  const noteTrashBgProgress = useSharedValue(0);
 
   const animatedNoteDelete = useAnimatedStyle(() => {
     return {
@@ -71,7 +74,7 @@ const Note = ({
   const animatedNoteTrashBG = useAnimatedStyle(() => {
     return {
       opacity: interpolate(
-      noteDeleteProgress.value,
+        noteDeleteProgress.value,
         [0, 150],
         [0, 1],
         Extrapolation.CLAMP
@@ -95,8 +98,8 @@ const Note = ({
     };
   });
 
-  const panResponder = useRef(
-    PanResponder.create({
+  const panResponder = useMemo(
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
 
@@ -105,8 +108,14 @@ const Note = ({
       },
 
       onPanResponderRelease: (_event, gestureState) => {
-        if (gestureState.dx >= 300) {
+        if (gestureState.dx >= 300 && status === 'active') {
+          if (!handleDeleteNote) return;
           handleDeleteNote(noteId);
+          return;
+        }
+        if (gestureState.dx >= 200 && status === 'deleted') {
+          if (!returnNote) return;
+          returnNote(noteId);
           return;
         }
 
@@ -115,22 +124,30 @@ const Note = ({
           stiffness: 150,
         });
 
-        if (Math.abs(gestureState.dx) < 10 && Math.abs(gestureState.dy) < 10) {
+        if (Math.abs(gestureState.dx) < 10 && Math.abs(gestureState.dy) < 10 && status === 'active') {
           editNote();
         }
       },
-    })
-  ).current;
+    }),
+    [status, noteId, handleDeleteNote, returnNote]
+  );
 
   return (
     <View style={stylesMainContainer.container}>
-      <Animated.View style={[stylesTrashContainer.container, animatedNoteTrashBG,]}>
-        <AnimatedIonicons
-          style={animatedTrashDelete}
-          name="trash"
-          color="#fff"
-        />
-      </Animated.View>
+      {status === 'deleted' ? (
+        <Animated.View style={[stylesTrashContainer.container, stylesTrashContainer.deleted, animatedNoteTrashBG]}>
+          <MaterialIcons name="restore" size={24} color="#fff" />       
+        </Animated.View>
+      ) : (
+        <Animated.View style={[stylesTrashContainer.container, stylesTrashContainer.active, animatedNoteTrashBG,]}>
+          <AnimatedIonicons
+            style={animatedTrashDelete}
+            name="trash"
+            color="#fff"
+          />
+        </Animated.View>
+      )}
+    
 
       <Animated.View
         {...panResponder.panHandlers}
@@ -171,7 +188,6 @@ const stylesMainContainer = StyleSheet.create({
 const stylesTrashContainer = StyleSheet.create({
   container: {
     position: "absolute",
-    backgroundColor: "#D96A5A",
     borderRadius: 10,
     top: 0,
     left: 0,
@@ -181,6 +197,12 @@ const stylesTrashContainer = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
   },
+  active: {
+    backgroundColor: "#D96A5A",
+  },
+  deleted: {
+    backgroundColor: "#4B9B7A",
+  }
 });
 
 const stylesNoteContainer = StyleSheet.create({

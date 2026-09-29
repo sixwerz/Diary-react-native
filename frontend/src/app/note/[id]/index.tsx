@@ -226,36 +226,27 @@ export default function EditNoteScreen() {
 
       const finalNotes: NoteProps[] =
         noteId === "new"
-          ? [
-              ...notes,
-              {
-                noteText,
-                noteTitle,
-                noteId: Date.now(),
-                noteCreatedAt: new Date().toISOString(),
-              },
-            ]
-          : notes.map((note) =>
-              note.noteId === noteId ? { ...note, noteText, noteTitle } : note
-            );
+          ? [...notes, { 
+              noteText, 
+              noteTitle, 
+              noteId: Date.now(), 
+              noteCreatedAt: new Date().toISOString(), 
+              status: 'active' 
+            }]
+          : notes.map(note => note.noteId === noteId ? { ...note, noteText, noteTitle } : note);
 
-      if (noteId === "new") {
-        setNoteId(notes.length + 1);
-      }
-
-      await AsyncStorage.setItem("notes", JSON.stringify(finalNotes));
-      ToastAndroid.show("Заметка успешно сохранена!", ToastAndroid.SHORT);
-      
+      await AsyncStorage.setItem("notes", JSON.stringify(finalNotes));          
+      ToastAndroid.show("Сохранено", ToastAndroid.SHORT);
     } catch (error) {
-      console.error(error);
+      console.error("Ошибка:", error);
     }
   };
 
   const handleBack = async () => {
-    await saveNote()    
-    router.back();
-    stopRecording();
-  };
+  await saveNote();
+  stopRecording();
+  router.back();
+};
 
   const loadNote = async (id: number) => {
     try {

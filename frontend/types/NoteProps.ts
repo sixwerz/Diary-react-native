@@ -3,6 +3,8 @@ export default interface NoteProps {
   noteText: string;
   noteTitle: string;
   noteCreatedAt: string;
+  deletedAt?: string;
+  status: 'active' | 'deleted'
   handleDeleteNote?(noteId: number): void;
-  returnNote?(): void;
+  returnNote?(noteId: number): void;
 }
