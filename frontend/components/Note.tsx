@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import NoteProps from "../types/NoteProps";
 
+const AnimatedMaterialIcons = Animated.createAnimatedComponent(MaterialIcons);
 const AnimatedIonicons = Animated.createAnimatedComponent(Ionicons);
 
 const Note = ({
@@ -24,8 +25,6 @@ const Note = ({
   returnNote
 }: NoteProps) => {
   if (!handleDeleteNote && !returnNote) return null;
-
-  const isDeleting = useRef(false);
 
   const getRelativeDateString = () => {
     const targetDate = new Date(noteCreatedAt);
@@ -82,7 +81,7 @@ const Note = ({
     };
   });
 
-  const animatedTrashDelete = useAnimatedStyle(() => {
+  const animatedTrashRestoreDelete = useAnimatedStyle(() => {
     return {
       opacity: noteDeleteProgress.value,
       transform: [
@@ -136,12 +135,16 @@ const Note = ({
     <View style={stylesMainContainer.container}>
       {status === 'deleted' ? (
         <Animated.View style={[stylesTrashContainer.container, stylesTrashContainer.deleted, animatedNoteTrashBG]}>
-          <MaterialIcons name="restore" size={24} color="#fff" />       
+          <AnimatedMaterialIcons 
+            name="restore" 
+            style={animatedTrashRestoreDelete}
+            color="#fff" 
+          />       
         </Animated.View>
       ) : (
         <Animated.View style={[stylesTrashContainer.container, stylesTrashContainer.active, animatedNoteTrashBG,]}>
           <AnimatedIonicons
-            style={animatedTrashDelete}
+            style={animatedTrashRestoreDelete}
             name="trash"
             color="#fff"
           />
