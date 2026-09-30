@@ -224,12 +224,14 @@ export default function EditNoteScreen() {
       const response = await AsyncStorage.getItem("notes");
       const notes: NoteProps[] = response ? JSON.parse(response) : [];
 
+      const dateNow: number = Date.now();
+
       const finalNotes: NoteProps[] =
         noteId === "new"
           ? [...notes, { 
               noteText, 
               noteTitle, 
-              noteId: Date.now(), 
+              noteId:dateNow, 
               noteCreatedAt: new Date().toISOString(), 
               status: 'active' 
             }]
@@ -237,16 +239,18 @@ export default function EditNoteScreen() {
 
       await AsyncStorage.setItem("notes", JSON.stringify(finalNotes));          
       ToastAndroid.show("Сохранено", ToastAndroid.SHORT);
+
+      setNoteId(dateNow);
     } catch (error) {
       console.error("Ошибка:", error);
     }
   };
 
   const handleBack = async () => {
-  await saveNote();
-  stopRecording();
-  router.back();
-};
+    await saveNote();
+    stopRecording();
+    router.back();
+  };
 
   const loadNote = async (id: number) => {
     try {
